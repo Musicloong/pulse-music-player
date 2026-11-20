@@ -32,6 +32,8 @@ export default function App() {
   const [liked, setLiked] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [previewStarted, setPreviewStarted] = useState(false);
+  const [previewNonce, setPreviewNonce] = useState(0);
   const track = tracks[current];
   const selection = tracks[featured];
   const queue = tracks.map((_, index) => wrap(current + index));
@@ -44,6 +46,13 @@ export default function App() {
   function playTrack(index: number) {
     setCurrent(index);
     setFeatured(index);
+    setPreviewStarted(true);
+    setPreviewNonce((value) => value + 1);
+  }
+
+  function startPreview() {
+    setPreviewStarted(true);
+    setPreviewNonce((value) => value + 1);
   }
 
   function toggle(index = current) {
@@ -81,11 +90,14 @@ export default function App() {
             </div>
             <div className="feature-action">
               <div><strong>{selection.title}</strong><small>{selection.artist} · {selection.album}</small></div>
-              <a className="primary-btn" href={`https://music.163.com/#/song?id=${selection.neteaseId}`} target="_blank" rel="noreferrer">网易云歌曲页</a>
+              <div className="feature-buttons">
+                <button className="primary-btn" onClick={startPreview}>试听 30 秒</button>
+                <a className="song-link" href={`https://music.163.com/#/song?id=${selection.neteaseId}`} target="_blank" rel="noreferrer">网易云歌曲页</a>
+              </div>
             </div>
-            <iframe className="netease-player" key={selection.neteaseId}
+            <iframe className="netease-player" key={`${selection.neteaseId}-${previewNonce}`}
                 title={`网易云音乐播放：${selection.title}`}
-                src={`https://music.163.com/outchain/player?type=2&id=${selection.neteaseId}&auto=0&height=66`}
+                src={`https://music.163.com/outchain/player?type=2&id=${selection.neteaseId}&auto=${previewStarted ? 1 : 0}&height=66`}
                 allow="autoplay" loading="eager" />
           </section>
           <aside className="up-next" id="playlist" aria-labelledby="queue-title">
