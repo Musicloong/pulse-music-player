@@ -52,11 +52,7 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; min-width: 0
 .feature-action { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 18px 22px; border-top: 1px solid var(--border); background: #1a1526; }
 .feature-action strong { display: block; font-size: clamp(18px, 3vw, 25px); letter-spacing: -.04em; }
 .feature-action small, .song small, .playing-song small { display: block; color: var(--muted); font-size: 13px; }
-.feature-buttons { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-.song-link { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.song-link:hover { color: var(--accent); }
-.netease-player { display: block; width: 100%; height: 86px; border: 0; background: #fff; }
-.music-player { display: none; }
+.netease-player-hidden { position: fixed; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; clip-path: inset(50%); }
 .song small, .playing-song small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .primary-btn { display: flex; gap: 9px; align-items: center; min-height: 44px; padding-inline: 18px; border-radius: 30px; background: var(--accent); color: #221330; font-weight: 700; flex-shrink: 0; transition: background .18s; }
 .primary-btn:hover, .main-play:hover { background: #f1e2ff; }
@@ -78,7 +74,7 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; min-width: 0
   z-index: 5;
   inset: auto 0 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 430px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 430px) auto;
   align-items: center;
   gap: 22px;
   padding: 10px 28px calc(10px + env(safe-area-inset-bottom));
@@ -86,23 +82,23 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; min-width: 0
   background: #191425f5;
   backdrop-filter: blur(16px);
 }
-.playing-song, .volume-controls, .transport-buttons, .scrubber { display: flex; align-items: center; gap: 8px; }
+.playing-song, .transport-buttons, .scrubber { display: flex; align-items: center; gap: 8px; }
 .playing-song > div { min-width: 0; }
 .transport-buttons { justify-content: center; gap: 4px; }
+.transport { width: 100%; }
 .icon-control { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--muted); transition: color .18s, background .18s; }
 .icon-control:hover { color: white; background: #3b304b; }
 .icon-control[aria-pressed="true"] { color: var(--accent); background: #342644; }
 .icon-control.main-play { background: var(--accent); color: #221330; }
 .icon-control.main-play:hover { background: #f1e2ff; }
 .scrubber { gap: 10px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.scrubber input { flex: 1; }
-.volume-controls { justify-self: end; width: min(156px, 100%); }
-.volume-controls input { width: 100%; }
-.audio-error { position: absolute; bottom: 100%; right: 16px; padding: 10px 12px; background: #392236; border-radius: 10px; }
+.scrubber-progress { flex: 1; height: 4px; border-radius: 4px; background: #3b304b; overflow: hidden; }
+.scrubber-progress > span { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
+.player-note { color: var(--muted); font-size: 12px; white-space: nowrap; }
 @media (max-width: 820px) {
   .music-grid { grid-template-columns: minmax(0, 1fr); }
   .music-player { grid-template-columns: minmax(0, 1fr) minmax(200px, 1.5fr); gap: 12px; padding-inline: 16px; }
-  .volume-controls { display: none; }
+  .player-note { display: none; }
 }
 @media (max-width: 450px) {
   .music-main, .site-header { padding-inline: 16px; }
@@ -110,10 +106,7 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; min-width: 0
   .music-player { grid-template-columns: minmax(0, 1fr) 152px; gap: 7px; padding-inline: 10px; }
   .playing-song .cover { width: 35px; height: 35px; }
   .transport-buttons { gap: 0; }
-  .transport-buttons .repeat { display: none; }
   .feature-action { padding: 15px; }
-  .feature-buttons { gap: 10px; }
-  .song-link { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }

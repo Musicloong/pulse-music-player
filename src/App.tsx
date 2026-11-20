@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AudioLines, ChevronLeft, ChevronRight, Heart, ListMusic, Pause, Play, Repeat2, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AudioLines, ChevronLeft, ChevronRight, Heart, ListMusic, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { WarpCarousel, type WarpCard } from "@/components/ui/warp-carousel";
 import { tracks } from "./tracks";
 
@@ -10,6 +10,7 @@ const cards: WarpCard[] = tracks.map((track) => ({
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 const wrap = (index: number) => (index + tracks.length) % tracks.length;
+const PREVIEW_DURATION = 30;
 function Cover({ index }: { index: number }) {
   const track = tracks[index];
   return <span className="cover" style={{ backgroundColor: track.color }}>
@@ -19,19 +20,11 @@ function Cover({ index }: { index: number }) {
 }
 
 export default function App() {
-  const audio = useRef<HTMLAudioElement>(null);
-  const playRequest = useRef(0);
-  const [duration, setDuration] = useState(30);
   const [current, setCurrent] = useState(0);
   const [featured, setFeatured] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [volume, setVolume] = useState(0.65);
-  const [muted, setMuted] = useState(false);
-  const [repeat, setRepeat] = useState(false);
   const [liked, setLiked] = useState<number[]>([]);
-  const [error, setError] = useState("");
-  const [ready, setReady] = useState(false);
   const [previewStarted, setPreviewStarted] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
   const track = tracks[current];
@@ -40,23 +33,38 @@ export default function App() {
 
 
   useEffect(() => {
-    if (audio.current) audio.current.volume = volume;
-  }, [volume]);
+    if (!playing) return;
+    const timer = window.setInterval(() => setElapsed((value) => Math.min(value + 1, PREVIEW_DURATION)), 1000);
+    return () => window.clearInterval(timer);
+  }, [playing]);
+
+  useEffect(() => {
+    if (playing && elapsed >= PREVIEW_DURATION) {
+      setPlaying(false);
+      setPreviewStarted(false);
+      setPreviewNonce((value) => value + 1);
+    }
+  }, [elapsed, playing]);
 
   function playTrack(index: number) {
     setCurrent(index);
     setFeatured(index);
+    setElapsed(0);
+    setPlaying(true);
     setPreviewStarted(true);
     setPreviewNonce((value) => value + 1);
   }
 
-  function startPreview() {
-    setPreviewStarted(true);
+  function stopPreview() {
+    setPlaying(false);
+    setPreviewStarted(false);
+    setElapsed(0);
     setPreviewNonce((value) => value + 1);
   }
 
   function toggle(index = current) {
-    playTrack(index);
+    if (index === current && playing) stopPreview();
+    else playTrack(index);
   }
 
   function toggleLike() {
@@ -72,7 +80,7 @@ export default function App() {
       <main id="top" className="music-main">
         <div className="page-title">
           <h1>夜间电台<span>.</span></h1>
-          <p>滑动专辑封面切歌 · 网易云音乐官方播放器</p>
+          <p>滑动专辑封面切歌 · 使用下方播放器试听 30 秒</p>
         </div>
         <div className="music-grid">
           <section className="feature" aria-label="精选曲目">
@@ -90,15 +98,7 @@ export default function App() {
             </div>
             <div className="feature-action">
               <div><strong>{selection.title}</strong><small>{selection.artist} · {selection.album}</small></div>
-              <div className="feature-buttons">
-                <button className="primary-btn" onClick={startPreview}>试听 30 秒</button>
-                <a className="song-link" href={`https://music.163.com/#/song?id=${selection.neteaseId}`} target="_blank" rel="noreferrer">网易云歌曲页</a>
-              </div>
             </div>
-            <iframe className="netease-player" key={`${selection.neteaseId}-${previewNonce}`}
-                title={`网易云音乐播放：${selection.title}`}
-                src={`https://music.163.com/outchain/player?type=2&id=${selection.neteaseId}&auto=${previewStarted ? 1 : 0}&height=66`}
-                allow="autoplay" loading="eager" />
           </section>
           <aside className="up-next" id="playlist" aria-labelledby="queue-title">
             <h2 id="queue-title">播放队列</h2>
@@ -113,11 +113,11 @@ export default function App() {
           </aside>
         </div>
       </main>
+      <iframe className="netease-player-hidden" key={`${selection.neteaseId}-${previewNonce}`}
+        title={`网易云音乐试听：${selection.title}`} aria-hidden="true" tabIndex={-1}
+        src={`https://music.163.com/outchain/player?type=2&id=${selection.neteaseId}&auto=${previewStarted ? 1 : 0}&height=66`}
+        allow="autoplay; encrypted-media" loading="eager" />
       <footer className="music-player" aria-label="播放器">
-        <audio ref={audio} muted={muted} loop={repeat} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-          onLoadedMetadata={(event) => { setDuration(event.currentTarget.duration); setReady(true); }} onTimeUpdate={(event) => setElapsed(event.currentTarget.currentTime)}
-          onEnded={() => playTrack(wrap(current + 1))} onError={() => setError("音频无法播放，请再试一次。")} />
-        {error && <p className="audio-error" role="status">{error}</p>}
         <div className="playing-song">
           <Cover index={current} /><div><strong>{track.title}</strong><small>{track.artist} · {track.album}</small></div>
           <button className="icon-control favorite" aria-label="收藏当前歌曲" aria-pressed={liked.includes(current)} onClick={toggleLike}>
@@ -131,26 +131,16 @@ export default function App() {
               {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
             </button>
             <button className="icon-control" aria-label="下一首" onClick={() => playTrack(wrap(current + 1))}><SkipForward size={18} fill="currentColor" /></button>
-            <button className="icon-control repeat" aria-label="单曲循环" aria-pressed={repeat} onClick={() => setRepeat(!repeat)}><Repeat2 size={18} /></button>
           </div>
           <div className="scrubber">
             <span>{time(elapsed)}</span>
-            <input type="range" aria-label="播放进度" min="0" max={duration} step="0.1" value={elapsed} disabled={!ready}
-              onChange={(event) => {
-                const value = event.currentTarget.valueAsNumber;
-                if (audio.current) audio.current.currentTime = value;
-                setElapsed(value);
-              }} />
-            <span>{time(duration)}</span>
+            <div className="scrubber-progress" role="progressbar" aria-label="试听进度" aria-valuemin={0} aria-valuemax={PREVIEW_DURATION} aria-valuenow={elapsed}>
+              <span style={{ width: `${(elapsed / PREVIEW_DURATION) * 100}%` }} />
+            </div>
+            <span>{time(PREVIEW_DURATION)}</span>
           </div>
         </div>
-        <div className="volume-controls">
-          <button className="icon-control" aria-label={muted ? "取消静音" : "静音"} onClick={() => setMuted(!muted)}>
-            {muted || volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
-          </button>
-          <input type="range" aria-label="音量" min="0" max="1" step="0.01" value={muted ? 0 : volume}
-            onChange={(event) => { setMuted(false); setVolume(event.currentTarget.valueAsNumber); }} />
-        </div>
+        <div className="player-note">网易云 · 30 秒试听</div>
       </footer>
     </div>
   );
